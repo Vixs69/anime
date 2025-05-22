@@ -1,11 +1,13 @@
-import TestDb from './TestDb';
+import TestRtdb from './TestRtdb';
 
 function App() {
   return (
     <div>
-      {/* il resto della tua app */}
-      <TestDb />
+      {/* altri componenti */}
+      <h1>Test Realtime DB</h1>
+      <TestRtdb />
     </div>
   );
 }
+
 export default App;
