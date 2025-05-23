@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test Auth Email/Password + Firestore</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; max-width: 400px; margin: auto; }
+    input, button { display: block; width: 100%; margin: 0.5rem 0; padding: 0.5rem; }
+    ul { list-style: none; padding: 0; }
+    li { margin: 0.25rem 0; }
+  </style>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.17.0/firebase-app.js";
+    import {
+      getAuth,
+      createUserWithEmailAndPassword,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.17.0/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      query,
+      orderBy
+    } from "https://www.gstatic.com/firebasejs/10.17.0/firebase-firestore.js";
+
+    // ───── CONFIGURAZIONE ─────
+   const firebaseConfig = {
+  apiKey: "AIzaSyDopmY9o9iYn36RC92ionbrjszINAimZOE",
+  authDomain: "lista-anime-508f9.firebaseapp.com",
+  databaseURL: "https://lista-anime-508f9-default-rtdb.firebaseio.com",
+  projectId: "lista-anime-508f9",
+  storageBucket: "lista-anime-508f9.firebasestorage.app",
+  messagingSenderId: "132900121006",
+  appId: "1:132900121006:web:9d6c6ec7c547ccc926803f",
+  measurementId: "G-YN77B0TRYS"
+};
+
+    // ───── INIZIALIZZAZIONE ─────
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    // ───── ELEMENTI DEL DOM ─────
+    const emailIn   = document.getElementById("email");
+    const passIn    = document.getElementById("password");
+    const registerB = document.getElementById("btnRegister");
+    const loginB    = document.getElementById("btnLogin");
+    const logoutB   = document.getElementById("btnLogout");
+    const statusEl  = document.getElementById("status");
+    const userList  = document.getElementById("userList");
+
+    // ───── FUNZIONI CRUD FIRESTORE ─────
+    async function loadUsers() {
+      userList.innerHTML = "";
+      const q = query(collection(db, "users"), orderBy("ts", "desc"));
+      const snap = await getDocs(q);
+      snap.forEach(doc => {
+        const u = doc.data();
+        const li = document.createElement("li");
+        li.textContent = `${u.email} (registrato il ${new Date(u.ts).toLocaleString()})`;
+        userList.append(li);
+      });
+    }
+
+    async function saveUser(uid, email) {
+      await addDoc(collection(db, "users"), {
+        uid,
+        email,
+        ts: Date.now()
+      });
+    }
+
+    // ───── REGISTER ─────
+    registerB.addEventListener("click", async () => {
+      const email = emailIn.value;
+      const pass  = passIn.value;
+      try {
+        const cred = await createUserWithEmailAndPassword(auth, email, pass);
+        statusEl.textContent = `Registrato: ${cred.user.email}`;
+        await saveUser(cred.user.uid, cred.user.email);
+        loadUsers();
+      } catch(e) {
+        statusEl.textContent = `Errore registrazione: ${e.message}`;
+      }
+    });
+
+    // ───── LOGIN ─────
+    loginB.addEventListener("click", async () => {
+      const email = emailIn.value;
+      const pass  = passIn.value;
+      try {
+        const cred = await signInWithEmailAndPassword(auth, email, pass);
+        statusEl.textContent = `Loggato: ${cred.user.email}`;
+        loadUsers();
+      } catch(e) {
+        statusEl.textContent = `Errore login: ${e.message}`;
+      }
+    });
+
+    // ───── LOGOUT ─────
+    logoutB.addEventListener("click", async () => {
+      await signOut(auth);
+    });
+
+    // ───── ON AUTH STATE CHANGED ─────
+    onAuthStateChanged(auth, user => {
+      if (user) {
+        statusEl.textContent = `Autenticato: ${user.email}`;
+        emailIn.disabled = true;
+        passIn.disabled  = true;
+        registerB.disabled = true;
+        loginB.disabled    = true;
+        logoutB.style.display = "block";
+        loadUsers();
+      } else {
+        statusEl.textContent = `Non autenticato`;
+        emailIn.disabled = false;
+        passIn.disabled  = false;
+        registerB.disabled = false;
+        loginB.disabled    = false;
+        logoutB.style.display = "none";
+        userList.innerHTML = "";
+      }
+    });
+  </script>
+</head>
+<body>
+  <h1>🔐 Auth Email/Password + Firestore</h1>
+  <input id="email"    type="email"    placeholder="Email" />
+  <input id="password" type="password" placeholder="Password" />
+  <button id="btnRegister">Registrati</button>
+  <button id="btnLogin">Accedi</button>
+  <button id="btnLogout" style="display:none;">Esci</button>
+  <p id="status">Caricamento...</p>
+
+  <h2>Utenti registrati:</h2>
+  <ul id="userList"></ul>
+</body>
+</html>
